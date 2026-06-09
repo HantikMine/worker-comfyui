@@ -194,3 +194,39 @@ target "base-ngc" {
   tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-base-ngc26.05"]
 }
 
+# Model images for end-to-end GPU/CUDA testing (DR-1170). SDXL is public, so no
+# HuggingFace token is required. These bake the SDXL checkpoint into the image so
+# a serverless worker can run a txt2img job with no network volume.
+target "sdxl-ngc" {
+  context = "."
+  dockerfile = "Dockerfile"
+  target = "final"
+  platforms = ["linux/amd64"]
+  args = {
+    BASE_IMAGE = "nvcr.io/nvidia/pytorch:26.05-py3"
+    COMFYUI_VERSION = "${COMFYUI_VERSION}"
+    CUDA_VERSION_FOR_COMFY = ""
+    ENABLE_PYTORCH_UPGRADE = "false"
+    PYTORCH_INDEX_URL = ""
+    BASE_PROVIDES_TORCH = "true"
+    MODEL_TYPE = "sdxl"
+  }
+  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-sdxl-ngc26.05"]
+}
+
+target "sdxl-cuda128" {
+  context = "."
+  dockerfile = "Dockerfile"
+  target = "final"
+  platforms = ["linux/amd64"]
+  args = {
+    BASE_IMAGE = "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"
+    COMFYUI_VERSION = "${COMFYUI_VERSION}"
+    CUDA_VERSION_FOR_COMFY = ""
+    ENABLE_PYTORCH_UPGRADE = "true"
+    PYTORCH_INDEX_URL = "https://download.pytorch.org/whl/cu128"
+    MODEL_TYPE = "sdxl"
+  }
+  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-sdxl-cuda12.8.1"]
+}
+

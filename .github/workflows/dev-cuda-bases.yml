@@ -24,6 +24,8 @@ jobs:
         target:
           - base-ngc
           - base-cuda12-8-1
+          - sdxl-ngc
+          - sdxl-cuda128
     steps:
       - name: Checkout
         uses: actions/checkout@v4
