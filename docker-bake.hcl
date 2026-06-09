@@ -171,3 +171,26 @@ target "base-cuda12-8-1" {
   tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-base-cuda12.8.1"]
 }
 
+# NGC PyTorch container base — ships a tuned, version-matched torch/cuDNN/NCCL
+# with Blackwell (sm_120) kernels baked in plus the cuda-compat forward-compat
+# libs (designed to run on older datacenter drivers). We reuse that torch via
+# BASE_PROVIDES_TORCH and tell comfy-cli to skip its own torch install.
+# Not in the default group: pulling nvcr.io may require `docker login nvcr.io`.
+# Build explicitly with: docker buildx bake base-ngc
+target "base-ngc" {
+  context = "."
+  dockerfile = "Dockerfile"
+  target = "base"
+  platforms = ["linux/amd64"]
+  args = {
+    BASE_IMAGE = "nvcr.io/nvidia/pytorch:26.05-py3"
+    COMFYUI_VERSION = "${COMFYUI_VERSION}"
+    CUDA_VERSION_FOR_COMFY = ""
+    ENABLE_PYTORCH_UPGRADE = "false"
+    PYTORCH_INDEX_URL = ""
+    BASE_PROVIDES_TORCH = "true"
+    MODEL_TYPE = "base"
+  }
+  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-base-ngc26.05"]
+}
+

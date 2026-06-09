@@ -9,6 +9,9 @@ ARG COMFYUI_VERSION=latest
 ARG CUDA_VERSION_FOR_COMFY
 ARG ENABLE_PYTORCH_UPGRADE=false
 ARG PYTORCH_INDEX_URL
+# When the base image already ships a tuned PyTorch (e.g. NGC nvcr.io/nvidia/pytorch),
+# set this to "true" to reuse it instead of letting comfy-cli install its own wheel.
+ARG BASE_PROVIDES_TORCH=false
 
 # Prevents prompts from packages asking for user input during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -38,11 +41,17 @@ RUN apt-get update && apt-get install -y \
 # Clean up to reduce image size
 RUN apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Install uv (latest) using official installer and create isolated venv
+# Install uv (latest) using official installer and create the venv.
+# With BASE_PROVIDES_TORCH=true the venv inherits the base image's site-packages
+# (--system-site-packages) so NVIDIA's bundled torch/cuDNN/NCCL stay visible.
 RUN wget -qO- https://astral.sh/uv/install.sh | sh \
     && ln -s /root/.local/bin/uv /usr/local/bin/uv \
     && ln -s /root/.local/bin/uvx /usr/local/bin/uvx \
-    && uv venv /opt/venv
+    && if [ "$BASE_PROVIDES_TORCH" = "true" ]; then \
+         uv venv --system-site-packages --python /usr/bin/python3.12 /opt/venv; \
+       else \
+         uv venv /opt/venv; \
+       fi
 
 # Use the virtual environment for all subsequent commands
 ENV PATH="/opt/venv/bin:${PATH}"
@@ -51,7 +60,11 @@ ENV PATH="/opt/venv/bin:${PATH}"
 RUN uv pip install comfy-cli pip setuptools wheel
 
 # Install ComfyUI
-RUN if [ -n "${CUDA_VERSION_FOR_COMFY}" ]; then \
+# When the base image provides torch, skip comfy-cli's torch install so it does
+# not clobber the bundled wheel; otherwise install torch for the requested CUDA.
+RUN if [ "$BASE_PROVIDES_TORCH" = "true" ]; then \
+      /usr/bin/yes | comfy --workspace /comfyui install --version "${COMFYUI_VERSION}" --skip-torch-or-directml --nvidia; \
+    elif [ -n "${CUDA_VERSION_FOR_COMFY}" ]; then \
       /usr/bin/yes | comfy --workspace /comfyui install --version "${COMFYUI_VERSION}" --cuda-version "${CUDA_VERSION_FOR_COMFY}" --nvidia; \
     else \
       /usr/bin/yes | comfy --workspace /comfyui install --version "${COMFYUI_VERSION}" --nvidia; \
