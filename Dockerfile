@@ -75,6 +75,19 @@ RUN if [ "$ENABLE_PYTORCH_UPGRADE" = "true" ]; then \
       uv pip install --force-reinstall torch torchvision torchaudio --index-url ${PYTORCH_INDEX_URL}; \
     fi
 
+# Pin ComfyUI's unbounded ML dependencies to their last known-good majors.
+# ComfyUI requires transformers>=4.50.3 and huggingface-hub with NO upper bound,
+# so a fresh install pulls transformers 5.x + huggingface-hub 1.x whose breaking
+# API changes make ComfyUI crash on startup — which only surfaces at runtime as
+# the misleading "ComfyUI server not reachable" error.
+RUN uv pip install "transformers>=4.50.3,<5" "huggingface-hub<1.0"
+
+# Build-time smoke test: actually start ComfyUI (imports the full node graph) so
+# a startup-breaking dependency is caught HERE, at build time, instead of as a
+# runtime "server not reachable" failure on a serverless worker. Runs on CPU —
+# no GPU is needed to exercise the import graph.
+RUN cd /comfyui && timeout 300 python main.py --quick-test-for-ci --cpu
+
 # Change working directory to ComfyUI
 WORKDIR /comfyui
 
