@@ -14,13 +14,24 @@ variable "COMFYUI_VERSION" {
   default = "latest"
 }
 
-# Global defaults for standard CUDA 12.6.3 images
+# Default base image: NVIDIA NGC PyTorch container (Ubuntu 24.04 + tuned
+# torch/cuDNN/NCCL with Blackwell sm_120 kernels + cuda-compat forward-compat
+# libs). Validated end-to-end on every serverless GPU (Ampere → Blackwell).
 variable "BASE_IMAGE" {
-  default = "nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04"
+  default = "nvcr.io/nvidia/pytorch:26.05-py3"
 }
 
+# The NGC base already ships a tuned PyTorch — reuse it (venv built with
+# --system-site-packages, comfy-cli run with --skip-torch-or-directml) instead
+# of letting comfy-cli install its own wheel.
+variable "BASE_PROVIDES_TORCH" {
+  default = "true"
+}
+
+# Empty: do not have comfy-cli install torch for a specific CUDA (the base
+# provides it). Only used when BASE_PROVIDES_TORCH=false.
 variable "CUDA_VERSION_FOR_COMFY" {
-  default = "12.6"
+  default = ""
 }
 
 variable "ENABLE_PYTORCH_UPGRADE" {
@@ -36,7 +47,7 @@ variable "HUGGINGFACE_ACCESS_TOKEN" {
 }
 
 group "default" {
-  targets = ["base", "sdxl", "sd3", "flux1-schnell", "flux1-dev", "flux1-dev-fp8", "z-image-turbo", "base-cuda12-8-1"]
+  targets = ["base", "sdxl", "sd3", "flux1-schnell", "flux1-dev", "flux1-dev-fp8", "z-image-turbo"]
 }
 
 target "base" {
@@ -46,6 +57,7 @@ target "base" {
   platforms = ["linux/amd64"]
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -61,6 +73,7 @@ target "sdxl" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -77,6 +90,7 @@ target "sd3" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -94,6 +108,7 @@ target "flux1-schnell" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -111,6 +126,7 @@ target "flux1-dev" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -128,6 +144,7 @@ target "flux1-dev-fp8" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -144,6 +161,7 @@ target "z-image-turbo" {
   target = "final"
   args = {
     BASE_IMAGE = "${BASE_IMAGE}"
+    BASE_PROVIDES_TORCH = "${BASE_PROVIDES_TORCH}"
     COMFYUI_VERSION = "${COMFYUI_VERSION}"
     CUDA_VERSION_FOR_COMFY = "${CUDA_VERSION_FOR_COMFY}"
     ENABLE_PYTORCH_UPGRADE = "${ENABLE_PYTORCH_UPGRADE}"
@@ -154,79 +172,3 @@ target "z-image-turbo" {
   tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-z-image-turbo"]
   inherits = ["base"]
 }
-
-target "base-cuda12-8-1" {
-  context = "."
-  dockerfile = "Dockerfile"
-  target = "base"
-  platforms = ["linux/amd64"]
-  args = {
-    BASE_IMAGE = "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"
-    COMFYUI_VERSION = "${COMFYUI_VERSION}"
-    CUDA_VERSION_FOR_COMFY = ""
-    ENABLE_PYTORCH_UPGRADE = "true"
-    PYTORCH_INDEX_URL = "https://download.pytorch.org/whl/cu128"
-    MODEL_TYPE = "base"
-  }
-  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-base-cuda12.8.1"]
-}
-
-# NGC PyTorch container base — ships a tuned, version-matched torch/cuDNN/NCCL
-# with Blackwell (sm_120) kernels baked in plus the cuda-compat forward-compat
-# libs (designed to run on older datacenter drivers). We reuse that torch via
-# BASE_PROVIDES_TORCH and tell comfy-cli to skip its own torch install.
-# Not in the default group: pulling nvcr.io may require `docker login nvcr.io`.
-# Build explicitly with: docker buildx bake base-ngc
-target "base-ngc" {
-  context = "."
-  dockerfile = "Dockerfile"
-  target = "base"
-  platforms = ["linux/amd64"]
-  args = {
-    BASE_IMAGE = "nvcr.io/nvidia/pytorch:26.05-py3"
-    COMFYUI_VERSION = "${COMFYUI_VERSION}"
-    CUDA_VERSION_FOR_COMFY = ""
-    ENABLE_PYTORCH_UPGRADE = "false"
-    PYTORCH_INDEX_URL = ""
-    BASE_PROVIDES_TORCH = "true"
-    MODEL_TYPE = "base"
-  }
-  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-base-ngc26.05"]
-}
-
-# Model images for end-to-end GPU/CUDA testing (DR-1170). SDXL is public, so no
-# HuggingFace token is required. These bake the SDXL checkpoint into the image so
-# a serverless worker can run a txt2img job with no network volume.
-target "sdxl-ngc" {
-  context = "."
-  dockerfile = "Dockerfile"
-  target = "final"
-  platforms = ["linux/amd64"]
-  args = {
-    BASE_IMAGE = "nvcr.io/nvidia/pytorch:26.05-py3"
-    COMFYUI_VERSION = "${COMFYUI_VERSION}"
-    CUDA_VERSION_FOR_COMFY = ""
-    ENABLE_PYTORCH_UPGRADE = "false"
-    PYTORCH_INDEX_URL = ""
-    BASE_PROVIDES_TORCH = "true"
-    MODEL_TYPE = "sdxl"
-  }
-  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-sdxl-ngc26.05"]
-}
-
-target "sdxl-cuda128" {
-  context = "."
-  dockerfile = "Dockerfile"
-  target = "final"
-  platforms = ["linux/amd64"]
-  args = {
-    BASE_IMAGE = "nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04"
-    COMFYUI_VERSION = "${COMFYUI_VERSION}"
-    CUDA_VERSION_FOR_COMFY = ""
-    ENABLE_PYTORCH_UPGRADE = "true"
-    PYTORCH_INDEX_URL = "https://download.pytorch.org/whl/cu128"
-    MODEL_TYPE = "sdxl"
-  }
-  tags = ["${DOCKERHUB_REPO}/${DOCKERHUB_IMG}:${RELEASE_VERSION}-sdxl-cuda12.8.1"]
-}
-

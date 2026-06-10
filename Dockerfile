@@ -1,5 +1,6 @@
-# Build argument for base image selection
-ARG BASE_IMAGE=nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+# Build argument for base image selection. Default: NVIDIA NGC PyTorch container
+# (Ubuntu 24.04 + tuned torch/cuDNN/NCCL incl. Blackwell sm_120 kernels).
+ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:26.05-py3
 
 # Stage 1: Base image with common dependencies
 FROM ${BASE_IMAGE} AS base
@@ -10,8 +11,9 @@ ARG CUDA_VERSION_FOR_COMFY
 ARG ENABLE_PYTORCH_UPGRADE=false
 ARG PYTORCH_INDEX_URL
 # When the base image already ships a tuned PyTorch (e.g. NGC nvcr.io/nvidia/pytorch),
-# set this to "true" to reuse it instead of letting comfy-cli install its own wheel.
-ARG BASE_PROVIDES_TORCH=false
+# keep "true" to reuse it instead of letting comfy-cli install its own wheel.
+# Set to "false" only when using a plain CUDA base that has no torch.
+ARG BASE_PROVIDES_TORCH=true
 
 # Prevents prompts from packages asking for user input during installation
 ENV DEBIAN_FRONTEND=noninteractive
