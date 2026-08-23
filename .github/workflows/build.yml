@@ -29,6 +29,6 @@ jobs:
           tags: hantikmine/worker-comfyui:latest
           build-args: |
             ENABLE_PYTORCH_UPGRADE=true
-            PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu121
+            PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu126
           cache-from: type=gha
           cache-to: type=gha,mode=max
