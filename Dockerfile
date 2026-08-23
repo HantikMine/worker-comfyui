@@ -62,6 +62,21 @@ RUN if [ "$ENABLE_PYTORCH_UPGRADE" = "true" ]; then \
       uv pip install --force-reinstall torch torchvision torchaudio --index-url ${PYTORCH_INDEX_URL}; \
     fi
 
+# Bake custom nodes used by the DaSiWa WAN 2.2 I2V (FastFidelity) image.
+# Must be baked here (ComfyUI-Manager is forced offline at runtime), and must
+# precede the /opt/venv dependency-mirror RUN below so that each node's
+# requirements.txt is installed into the launch venv. KJNodes provides
+# ModelAttentionBackend (comfy-kitchen), ModelPatchTorchSettings,
+# WanChunkFeedForward and PatchTritonVAE; DaSiWa-Nodes provides the
+# FastFidelity pipeline nodes. The smoke test further down validates that the
+# whole node graph imports at build time, so a broken node fails the build here.
+RUN mkdir -p /comfyui/custom_nodes \
+ && git clone --depth 1 https://github.com/kijai/ComfyUI-KJNodes /comfyui/custom_nodes/ComfyUI-KJNodes \
+ && git clone --depth 1 https://github.com/rgthree/rgthree-comfy /comfyui/custom_nodes/rgthree-comfy \
+ && git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo /comfyui/custom_nodes/ComfyUI-LTXVideo \
+ && git clone --depth 1 https://github.com/Artificial-Sweetener/comfyui-WhiteRabbit /comfyui/custom_nodes/comfyui-WhiteRabbit \
+ && git clone --depth 1 https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes /comfyui/custom_nodes/ComfyUI-DaSiWa-Nodes
+
 # comfy-cli installs ComfyUI into its own workspace venv (/comfyui/.venv), but
 # start.sh launches ComfyUI with /opt/venv's python. That mismatch leaves the
 # launch venv missing ComfyUI's runtime deps (e.g. sqlalchemy, pulled in by
