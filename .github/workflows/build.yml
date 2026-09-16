@@ -26,10 +26,11 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: hantikmine/worker-comfyui-comfy036:latest
+          tags: hantikmine/worker-comfyui-cu130:latest
           build-args: |
+            BASE_IMAGE=nvidia/cuda:13.3.1-cudnn-runtime-ubuntu24.04
             COMFYUI_VERSION=0.36.0
             ENABLE_PYTORCH_UPGRADE=true
-            PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu126
+            PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
           cache-from: type=gha
           cache-to: type=gha,mode=max
