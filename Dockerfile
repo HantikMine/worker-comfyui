@@ -19,10 +19,17 @@ ENV PYTHONUNBUFFERED=1
 # Speed up some cmake builds
 ENV CMAKE_BUILD_PARALLEL_LEVEL=8
 
+# python3.12-dev ships Python.h. Triton JIT-compiles its CUDA driver shim
+# (triton/backends/nvidia/driver.c -> cuda_utils.*.so) on the first kernel
+# launch; without the headers gcc dies with 'fatal error: Python.h: No such
+# file or directory' and the whole generation fails. build-essential alone is
+# not enough. ComfyUI reaches torch's native triton ops from its own llama.py
+# (precompute_freqs_cis), so every MiniMax H3 run hits this path.
 # Install Python, git and other necessary tools
 RUN apt-get update && apt-get install -y \
     python3.12 \
     python3.12-venv \
+    python3.12-dev \
     git \
     wget \
     build-essential \
