@@ -26,8 +26,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: hantikmine/worker-comfyui:latest
+          tags: hantikmine/worker-comfyui-comfy036:latest
           build-args: |
+            COMFYUI_VERSION=0.36.0
             ENABLE_PYTORCH_UPGRADE=true
             PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cu126
           cache-from: type=gha
